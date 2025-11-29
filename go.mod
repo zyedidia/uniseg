@@ -1,3 +1,3 @@
-module github.com/rivo/uniseg
+module github.com/zyedidia/uniseg
 
 go 1.18

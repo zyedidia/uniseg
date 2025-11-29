@@ -525,6 +525,6 @@ func FuzzStepString(f *testing.F) {
 
 		// Note: If you have ideas for more useful checks we could add here,
 		// please submit them here:
-		// https://github.com/rivo/uniseg/issues
+		// https://github.com/zyedidia/uniseg/issues
 	})
 }

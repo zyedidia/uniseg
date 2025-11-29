@@ -343,3 +343,68 @@ func FirstGraphemeClusterInString(str string, state int) (cluster, rest string, 
 		}
 	}
 }
+
+type Decoder interface {
+	DecodeRuneAt(off int) (rune, int)
+	Len() int
+}
+
+func FirstGraphemeClusterDecoder(b Decoder, off int, state int) (size, width, newState int) {
+	// An empty byte slice returns nothing.
+	if off >= b.Len() {
+		return
+	}
+
+	// Extract the first rune.
+	r, length := b.DecodeRuneAt(off)
+	if b.Len()-off <= length { // If we're already past the end, there is nothing else to parse.
+		var prop int
+		if state < 0 {
+			prop = property(graphemeCodePoints, r)
+		} else {
+			prop = state >> shiftGraphemePropState
+		}
+		return length, runeWidth(r, prop), grAny | (prop << shiftGraphemePropState)
+	}
+
+	// If we don't know the state, determine it now.
+	var firstProp int
+	if state < 0 {
+		state, firstProp, _ = transitionGraphemeState(state, r)
+	} else {
+		firstProp = state >> shiftGraphemePropState
+	}
+	width += runeWidth(r, firstProp)
+
+	// Transition until we find a boundary.
+	for {
+		var (
+			prop     int
+			boundary bool
+		)
+
+		r, l := b.DecodeRuneAt(off + length)
+		state, prop, boundary = transitionGraphemeState(state&maskGraphemeState, r)
+
+		if boundary {
+			return length, width, state | (prop << shiftGraphemePropState)
+		}
+
+		if r == vs16 {
+			width = 2
+		} else if firstProp != prExtendedPictographic && firstProp != prRegionalIndicator && firstProp != prL {
+			width += runeWidth(r, prop)
+		} else if firstProp == prExtendedPictographic {
+			if r == vs15 {
+				width = 1
+			} else {
+				width = 2
+			}
+		}
+
+		length += l
+		if b.Len() <= length {
+			return length, width, grAny | (prop << shiftGraphemePropState)
+		}
+	}
+}
